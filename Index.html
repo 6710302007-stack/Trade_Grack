@@ -1,0 +1,445 @@
+# Trade_Grackimport React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Trash2, Award, GraduationCap, AlertCircle, CheckCircle, Moon, Sun, Droplet, TreePine, Sunset, ChevronDown, ChevronUp } from 'lucide-react';
+
+// --- โครงสร้างหลักสูตรและข้อมูลคงที่ ---
+const CURRICULUM = [
+  { id: 'gen_ed', name: 'หมวดศึกษาทั่วไป', required: 33 },
+  { id: 'core', name: 'กลุ่มวิชาแกน', required: 27 },
+  { id: 'major_req', name: 'กลุ่มวิชาชีพบังคับ', required: 52 },
+  { id: 'major_elec', name: 'กลุ่มวิชาชีพเลือก', required: 15 },
+  { id: 'free_elec', name: 'หมวดเลือกเสรี', required: 6 },
+];
+
+const GEN_ED_SUBCATEGORIES = [
+  { id: 'thai', name: 'ภาษาไทย', min: 3 },
+  { id: 'foreign', name: 'ภาษาต่างประเทศ', min: 6 },
+  { id: 'science', name: 'วิทยาศาสตร์', min: 3 },
+  { id: 'math', name: 'คณิตศาสตร์', min: 3 },
+  { id: 'social', name: 'สังคมศาสตร์', min: 3 },
+  { id: 'human', name: 'มนุษยศาสตร์', min: 3 },
+  { id: 'other', name: 'อื่นๆ (เลือกให้ครบ 33)', min: 0 }
+];
+
+const GRADES = [
+  { label: 'A', value: 4.0 },
+  { label: 'B+', value: 3.5 },
+  { label: 'B', value: 3.0 },
+  { label: 'C+', value: 2.5 },
+  { label: 'C', value: 2.0 },
+  { label: 'D+', value: 1.5 },
+  { label: 'D', value: 1.0 },
+  { label: 'F', value: 0.0 },
+];
+
+// --- ข้อมูล Themes สำหรับ Neumorphism ---
+const THEMES = {
+  light: { id: 'light', icon: Sun, bg: '#e0e5ec', sdDark: '#a3b1c6', sdLight: '#ffffff', text: '#2d3748', textMuted: '#718096', accent: '#4299e1' },
+  dark: { id: 'dark', icon: Moon, bg: '#292d32', sdDark: '#1c1f22', sdLight: '#363b42', text: '#e2e8f0', textMuted: '#a0aec0', accent: '#63b3ed' },
+  ocean: { id: 'ocean', icon: Droplet, bg: '#e0eaf5', sdDark: '#b8c6d4', sdLight: '#ffffff', text: '#2a4365', textMuted: '#4a5568', accent: '#3182ce' },
+  forest: { id: 'forest', icon: TreePine, bg: '#e2ece4', sdDark: '#b9c6bc', sdLight: '#ffffff', text: '#22543d', textMuted: '#4a5568', accent: '#38a169' },
+  sunset: { id: 'sunset', icon: Sunset, bg: '#f4e8e1', sdDark: '#d1c4bd', sdLight: '#ffffff', text: '#7b341e', textMuted: '#9c4221', accent: '#dd6b20' }
+};
+
+export default function App() {
+  // State
+  const [courses, setCourses] = useState([]);
+  const [currentTheme, setCurrentTheme] = useState('dark');
+  const [conditions, setConditions] = useState({
+    noF: true,
+    onTime: true, // จบใน 4 ปี
+    noRepeat: true
+  });
+  const [expandedCategories, setExpandedCategories] = useState({'gen_ed': true});
+
+  // Inject CSS Variables for Neumorphism based on Theme and Fonts
+  useEffect(() => {
+    const theme = THEMES[currentTheme];
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap');
+      
+      :root {
+        --bg: ${theme.bg};
+        --sd-dark: ${theme.sdDark};
+        --sd-light: ${theme.sdLight};
+        --text: ${theme.text};
+        --text-muted: ${theme.textMuted};
+        --accent: ${theme.accent};
+      }
+      
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', 'Sarabun', sans-serif;
+        margin: 0;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+
+      .neu-flat {
+        background: var(--bg);
+        box-shadow: 6px 6px 12px var(--sd-dark), -6px -6px 12px var(--sd-light);
+        border-radius: 20px;
+        transition: all 0.3s ease;
+      }
+      
+      .neu-flat-sm {
+        background: var(--bg);
+        box-shadow: 4px 4px 8px var(--sd-dark), -4px -4px 8px var(--sd-light);
+        border-radius: 12px;
+      }
+
+      .neu-pressed {
+        background: var(--bg);
+        box-shadow: inset 4px 4px 8px var(--sd-dark), inset -4px -4px 8px var(--sd-light);
+        border-radius: 12px;
+      }
+
+      .neu-button {
+        background: var(--bg);
+        box-shadow: 4px 4px 8px var(--sd-dark), -4px -4px 8px var(--sd-light);
+        border-radius: 12px;
+        transition: all 0.1s ease;
+      }
+      .neu-button:active {
+        box-shadow: inset 3px 3px 6px var(--sd-dark), inset -3px -3px 6px var(--sd-light);
+      }
+
+      .neu-circle {
+        background: var(--bg);
+        box-shadow: 4px 4px 8px var(--sd-dark), -4px -4px 8px var(--sd-light);
+        border-radius: 50%;
+        transition: all 0.1s ease;
+      }
+      .neu-circle:active {
+        box-shadow: inset 3px 3px 6px var(--sd-dark), inset -3px -3px 6px var(--sd-light);
+      }
+
+      /* Hide scrollbar for clean UI */
+      ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, [currentTheme]);
+
+  // Calculations
+  const stats = useMemo(() => {
+    let totalCredits = 0;
+    let earnedPoints = 0;
+    let categoryCredits = { gen_ed: 0, core: 0, major_req: 0, major_elec: 0, free_elec: 0 };
+    let hasF = false;
+
+    courses.forEach(c => {
+      const credit = parseFloat(c.credit) || 0;
+      const gradeVal = parseFloat(c.grade);
+      
+      if (!isNaN(gradeVal) && credit > 0) {
+        totalCredits += credit;
+        earnedPoints += (credit * gradeVal);
+        if (c.category) categoryCredits[c.category] += credit;
+        if (gradeVal === 0.0) hasF = true;
+      }
+    });
+
+    const gpa = totalCredits > 0 ? (earnedPoints / totalCredits).toFixed(2) : '0.00';
+    
+    // Honors Logic
+    let honors = 'none';
+    const isEligibleForHonors = conditions.onTime && conditions.noRepeat && !hasF && conditions.noF;
+    
+    if (isEligibleForHonors) {
+      if (parseFloat(gpa) >= 3.75) honors = '1st';
+      else if (parseFloat(gpa) >= 3.25) honors = '2nd';
+    }
+
+    return { gpa, totalCredits, categoryCredits, honors, hasF };
+  }, [courses, conditions]);
+
+  // Actions
+  const addCourse = (categoryId) => {
+    const newCourse = {
+      id: Date.now().toString(),
+      name: '',
+      credit: 3,
+      grade: '4.0',
+      category: categoryId,
+      subCategory: categoryId === 'gen_ed' ? 'other' : null
+    };
+    setCourses([...courses, newCourse]);
+    if (!expandedCategories[categoryId]) {
+       toggleCategory(categoryId);
+    }
+  };
+
+  const updateCourse = (id, field, value) => {
+    setCourses(courses.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
+
+  const deleteCourse = (id) => {
+    setCourses(courses.filter(c => c.id !== id));
+  };
+
+  const toggleCategory = (categoryId) => {
+    setExpandedCategories(prev => ({...prev, [categoryId]: !prev[categoryId]}));
+  };
+
+  // UI Components
+  const HonorsBadge = () => {
+    if (stats.honors === '1st') {
+      return (
+        <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 font-semibold text-sm neu-flat-sm">
+          <Award size={16} /> เกียรตินิยมอันดับ 1
+        </div>
+      );
+    }
+    if (stats.honors === '2nd') {
+      return (
+        <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-slate-400/20 text-slate-600 dark:text-slate-300 font-semibold text-sm neu-flat-sm">
+          <Award size={16} /> เกียรตินิยมอันดับ 2
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="min-h-screen w-full flex justify-center pb-20">
+      {/* Mobile Constraint Container (iPhone 15 Pro Max size simulation on Desktop) */}
+      <div className="w-full max-w-[430px] min-h-screen flex flex-col relative overflow-hidden">
+        
+        {/* Header & Theme Switcher */}
+        <div className="pt-12 pb-4 px-6 flex justify-between items-center z-10 sticky top-0" style={{ background: 'var(--bg)' }}>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Grade<span style={{ color: 'var(--accent)' }}>Calc</span></h1>
+            <p className="text-xs font-medium opacity-60">Digital Design & Technology</p>
+          </div>
+          
+          <div className="flex gap-2">
+            {Object.values(THEMES).map(t => {
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setCurrentTheme(t.id)}
+                  className={`w-8 h-8 flex items-center justify-center ${currentTheme === t.id ? 'neu-pressed' : 'neu-circle'}`}
+                  style={{ color: currentTheme === t.id ? 'var(--accent)' : 'var(--text-muted)' }}
+                >
+                  <Icon size={14} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-24 space-y-6">
+          
+          {/* Main Dashboard Card */}
+          <div className="neu-flat p-6 flex flex-col items-center justify-center relative overflow-hidden">
+            {/* Decorative background glow */}
+            <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 blur-2xl" style={{ background: 'var(--accent)' }}></div>
+            
+            <p className="text-sm font-semibold opacity-70 mb-1">GPA สะสม</p>
+            <h2 className="text-6xl font-bold mb-4 font-['Inter']" style={{ color: 'var(--accent)' }}>
+              {stats.gpa}
+            </h2>
+            
+            <div className="flex w-full justify-between items-center px-2 mb-4">
+              <div className="flex flex-col items-center">
+                <span className="text-xs opacity-60">หน่วยกิตสะสม</span>
+                <span className="text-lg font-semibold">{stats.totalCredits} <span className="text-xs">/ 133</span></span>
+              </div>
+              <div className="h-8 w-px opacity-20" style={{ background: 'var(--text)' }}></div>
+              <div className="flex flex-col items-center">
+                <span className="text-xs opacity-60">สถานะ</span>
+                <span className="text-sm font-semibold mt-1">
+                  {stats.totalCredits >= 133 ? 'สำเร็จการศึกษา 🎉' : 'กำลังศึกษา'}
+                </span>
+              </div>
+            </div>
+
+            <div className="h-6 flex items-center justify-center">
+              <HonorsBadge />
+            </div>
+          </div>
+
+          {/* Honors Conditions Toggles */}
+          <div className="neu-flat p-5 space-y-4">
+            <h3 className="text-sm font-bold flex items-center gap-2 mb-2">
+              <GraduationCap size={18} style={{ color: 'var(--accent)' }} /> 
+              เงื่อนไขเกียรตินิยม
+            </h3>
+            
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm font-medium opacity-80">ไม่เคยติด F หรือ U</span>
+              <div 
+                className={`w-12 h-6 rounded-full flex items-center p-1 transition-all ${conditions.noF ? 'neu-pressed' : 'neu-flat-sm'}`}
+                onClick={() => setConditions({...conditions, noF: !conditions.noF})}
+              >
+                <div className={`w-4 h-4 rounded-full transition-all ${conditions.noF ? 'translate-x-6' : ''}`} style={{ background: conditions.noF ? 'var(--accent)' : 'var(--text-muted)' }}></div>
+              </div>
+            </label>
+            
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm font-medium opacity-80">สำเร็จการศึกษาใน 4 ปี</span>
+              <div 
+                className={`w-12 h-6 rounded-full flex items-center p-1 transition-all ${conditions.onTime ? 'neu-pressed' : 'neu-flat-sm'}`}
+                onClick={() => setConditions({...conditions, onTime: !conditions.onTime})}
+              >
+                <div className={`w-4 h-4 rounded-full transition-all ${conditions.onTime ? 'translate-x-6' : ''}`} style={{ background: conditions.onTime ? 'var(--accent)' : 'var(--text-muted)' }}></div>
+              </div>
+            </label>
+
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm font-medium opacity-80">ไม่เคยลงทะเบียนเรียนซ้ำ (รีเกรด)</span>
+              <div 
+                className={`w-12 h-6 rounded-full flex items-center p-1 transition-all ${conditions.noRepeat ? 'neu-pressed' : 'neu-flat-sm'}`}
+                onClick={() => setConditions({...conditions, noRepeat: !conditions.noRepeat})}
+              >
+                <div className={`w-4 h-4 rounded-full transition-all ${conditions.noRepeat ? 'translate-x-6' : ''}`} style={{ background: conditions.noRepeat ? 'var(--accent)' : 'var(--text-muted)' }}></div>
+              </div>
+            </label>
+            
+            {stats.hasF && conditions.noF && (
+              <div className="flex items-start gap-2 mt-2 text-red-500 text-xs">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                <span>ระบบตรวจพบว่ามีวิชาที่ได้เกรด F คุณอาจหมดสิทธิ์ได้รับเกียรตินิยม</span>
+              </div>
+            )}
+          </div>
+
+          {/* Curriculum Sections */}
+          <div className="space-y-6 pt-2">
+            <h2 className="text-lg font-bold">โครงสร้างหลักสูตร (133 นก.)</h2>
+            
+            {CURRICULUM.map(cat => {
+              const currentCredits = stats.categoryCredits[cat.id];
+              const isComplete = currentCredits >= cat.required;
+              const isExpanded = expandedCategories[cat.id];
+              const categoryCourses = courses.filter(c => c.category === cat.id);
+
+              return (
+                <div key={cat.id} className="neu-flat overflow-hidden">
+                  {/* Category Header */}
+                  <div 
+                    className="p-4 flex items-center justify-between cursor-pointer"
+                    onClick={() => toggleCategory(cat.id)}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm">{cat.name}</span>
+                      <span className="text-xs opacity-60 mt-1">
+                        {currentCredits} / {cat.required} หน่วยกิต
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {isComplete && <CheckCircle size={18} className="text-green-500" />}
+                      <div className="neu-circle w-8 h-8 flex items-center justify-center">
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Category Content (Collapsible) */}
+                  {isExpanded && (
+                    <div className="p-4 pt-0 border-t border-black/5 dark:border-white/5">
+                      
+                      {/* Special Note for Gen Ed */}
+                      {cat.id === 'gen_ed' && (
+                         <div className="text-[10px] opacity-60 mb-4 bg-black/5 dark:bg-white/5 p-2 rounded-lg">
+                           เงื่อนไข: ไทย(3), ต่างประเทศ(6), วิทย์(3), คณิต(3), สังคม(3), มนุษย์(3)
+                         </div>
+                      )}
+
+                      <div className="space-y-4">
+                        {categoryCourses.map((course, index) => (
+                          <div key={course.id} className="flex flex-col gap-2 relative">
+                            {/* Course Number Badge */}
+                            <div className="absolute -left-1 -top-2 bg-black/10 dark:bg-white/10 text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold opacity-70">
+                              {index + 1}
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                placeholder="ชื่อวิชา / รหัสวิชา" 
+                                value={course.name}
+                                onChange={(e) => updateCourse(course.id, 'name', e.target.value)}
+                                className="neu-pressed flex-1 px-3 py-2 text-sm outline-none w-full"
+                                style={{ color: 'var(--text)' }}
+                              />
+                              <button 
+                                onClick={() => deleteCourse(course.id)}
+                                className="neu-button px-3 text-red-500 flex items-center justify-center shrink-0"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              {cat.id === 'gen_ed' && (
+                                <select 
+                                  value={course.subCategory || 'other'}
+                                  onChange={(e) => updateCourse(course.id, 'subCategory', e.target.value)}
+                                  className="neu-pressed px-2 py-2 text-xs outline-none flex-1 appearance-none"
+                                  style={{ color: 'var(--text)' }}
+                                >
+                                  {GEN_ED_SUBCATEGORIES.map(sub => (
+                                    <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                  ))}
+                                </select>
+                              )}
+                              
+                              <select 
+                                value={course.credit}
+                                onChange={(e) => updateCourse(course.id, 'credit', Number(e.target.value))}
+                                className="neu-pressed px-3 py-2 text-sm outline-none appearance-none w-20 text-center"
+                                style={{ color: 'var(--text)' }}
+                              >
+                                {[1, 2, 3, 4, 6].map(cr => (
+                                  <option key={cr} value={cr}>{cr} นก.</option>
+                                ))}
+                              </select>
+                              
+                              <select 
+                                value={course.grade}
+                                onChange={(e) => updateCourse(course.id, 'grade', e.target.value)}
+                                className="neu-pressed px-3 py-2 text-sm outline-none appearance-none w-20 text-center font-bold"
+                                style={{ color: 'var(--accent)' }}
+                              >
+                                {GRADES.map(g => (
+                                  <option key={g.label} value={g.value}>{g.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {/* Divider line between courses */}
+                            {index < categoryCourses.length - 1 && (
+                               <div className="h-px w-full bg-black/5 dark:bg-white/5 my-2"></div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      <button 
+                        onClick={() => addCourse(cat.id)}
+                        className="neu-button w-full mt-4 py-3 flex items-center justify-center gap-2 text-sm font-semibold opacity-80 hover:opacity-100"
+                        style={{ color: 'var(--accent)' }}
+                      >
+                        <Plus size={18} /> เพิ่มรายวิชา
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="text-center opacity-40 text-xs py-4">
+            Digital Design & Technology Grade Calculator
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
